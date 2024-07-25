@@ -90,6 +90,11 @@ def tiktoken_len(text):
     tokenizer = tiktoken.get_encoding("cl100k_base")
     tokens = tokenizer.encode(text)
     return len(tokens)
+    
+def clean_text(text):
+    # 불필요한 문자 제거
+    cleaned_text = re.sub(r'[\�]', '', text)
+    return cleaned_text
 
 def get_text(docs):
     doc_list = []
