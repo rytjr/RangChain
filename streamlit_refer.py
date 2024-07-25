@@ -2,18 +2,22 @@ import streamlit as st
 import tiktoken
 from loguru import logger
 import re
-import os
-from openpyxl import load_workbook
+
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
-from langchain.document_loaders import PyPDFLoader, Docx2txtLoader, UnstructuredPowerPointLoader
+
+from langchain.document_loaders import PyPDFLoader
+from langchain.document_loaders import Docx2txtLoader
+from langchain.document_loaders import UnstructuredPowerPointLoader
+
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
+
 from langchain.memory import ConversationBufferMemory
 from langchain.vectorstores import FAISS
+
 from langchain.callbacks import get_openai_callback
 from langchain.memory import StreamlitChatMessageHistory
-from langchain.docstore.document import Document
 
 def main():
     st.set_page_config(
@@ -33,7 +37,7 @@ def main():
         st.session_state.processComplete = None
 
     with st.sidebar:
-        uploaded_files = st.file_uploader("Upload your file", type=['pdf', 'docx', 'pptx', 'xlsx'], accept_multiple_files=True)
+        uploaded_files = st.file_uploader("Upload your file", type=['pdf', 'docx', 'pptx'], accept_multiple_files=True)
         openai_api_key = st.text_input("OpenAI API Key", key="chatbot_api_key", type="password")
         process = st.button("Process")
 
@@ -100,21 +104,18 @@ def get_text(docs):
 
     for doc in docs:
         file_name = doc.name  # doc 객체의 이름을 파일 이름으로 사용
-        temp_path = os.path.join("/tmp", file_name)  # 임시 파일 경로 설정
-        with open(temp_path, "wb") as file:  # 파일을 임시 경로에 저장
+        with open(file_name, "wb") as file:  # 파일을 doc.name으로 저장
             file.write(doc.getvalue())
             logger.info(f"Uploaded {file_name}")
         if '.pdf' in doc.name:
-            loader = PyPDFLoader(temp_path)
+            loader = PyPDFLoader(file_name)
             documents = loader.load_and_split()
         elif '.docx' in doc.name:
-            loader = Docx2txtLoader(temp_path)
+            loader = Docx2txtLoader(file_name)
             documents = loader.load_and_split()
         elif '.pptx' in doc.name:
-            loader = UnstructuredPowerPointLoader(temp_path)
+            loader = UnstructuredPowerPointLoader(file_name)
             documents = loader.load_and_split()
-        elif '.xlsx' in doc.name:
-            documents = load_xlsx(temp_path)
 
         # 텍스트 정제
         for document in documents:
@@ -122,18 +123,6 @@ def get_text(docs):
         
         doc_list.extend(documents)
     return doc_list
-
-def load_xlsx(file_path):
-    wb = load_workbook(filename=file_path)
-    documents = []
-    for sheet in wb.worksheets:
-        for row in sheet.iter_rows(values_only=True):
-            for cell in row:
-                if cell and isinstance(cell, str):
-                    content = cell.strip()
-                    if content:
-                        documents.append(Document(page_content=clean_text(content), metadata={'source': file_path}))
-    return documents
 
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(
