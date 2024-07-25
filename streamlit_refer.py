@@ -1,6 +1,7 @@
 import streamlit as st
 import tiktoken
 from loguru import logger
+import re
 
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
@@ -90,11 +91,13 @@ def tiktoken_len(text):
     tokenizer = tiktoken.get_encoding("cl100k_base")
     tokens = tokenizer.encode(text)
     return len(tokens)
-    
+
 def clean_text(text):
-    # 불필요한 문자 제거
-    cleaned_text = re.sub(r'[\�]', '', text)
-    return cleaned_text
+    # 불필요한 특수 문자 제거 및 공백 정리
+    text = re.sub(r'[\�\u200b\u202f\u3000]', ' ', text)  # 불필요한 문자들을 공백으로 대체
+    text = re.sub(r'\s+', ' ', text)  # 연속된 공백들을 단일 공백으로 대체
+    text = text.strip()  # 양 끝의 공백 제거
+    return text
 
 def get_text(docs):
     doc_list = []
@@ -114,6 +117,10 @@ def get_text(docs):
             loader = UnstructuredPowerPointLoader(file_name)
             documents = loader.load_and_split()
 
+        # 텍스트 정제
+        for document in documents:
+            document.page_content = clean_text(document.page_content)
+        
         doc_list.extend(documents)
     return doc_list
 
