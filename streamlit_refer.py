@@ -3,23 +3,17 @@ import tiktoken
 from loguru import logger
 import re
 import os
-import pandas as pd
-
+from openpyxl import load_workbook
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
-
-from langchain.document_loaders import PyPDFLoader
-from langchain.document_loaders import Docx2txtLoader
-from langchain.document_loaders import UnstructuredPowerPointLoader
-
+from langchain.document_loaders import PyPDFLoader, Docx2txtLoader, UnstructuredPowerPointLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
-
 from langchain.memory import ConversationBufferMemory
 from langchain.vectorstores import FAISS
-
 from langchain.callbacks import get_openai_callback
 from langchain.memory import StreamlitChatMessageHistory
+from langchain.docstore.document import Document
 
 def main():
     st.set_page_config(
@@ -130,13 +124,15 @@ def get_text(docs):
     return doc_list
 
 def load_xlsx(file_path):
-    df = pd.read_excel(file_path, engine='openpyxl')
+    wb = load_workbook(filename=file_path)
     documents = []
-    for _, row in df.iterrows():
-        for col in df.columns:
-            content = str(row[col])
-            if content.strip():
-                documents.append(Document(page_content=clean_text(content), metadata={'source': file_path}))
+    for sheet in wb.worksheets:
+        for row in sheet.iter_rows(values_only=True):
+            for cell in row:
+                if cell and isinstance(cell, str):
+                    content = cell.strip()
+                    if content:
+                        documents.append(Document(page_content=clean_text(content), metadata={'source': file_path}))
     return documents
 
 def get_text_chunks(text):
